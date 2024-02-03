@@ -1,0 +1,67 @@
+{"level":"error","message":"Button title not supported","timestamp":"2024-02-03T05:23:24.697Z"}
+{"level":"error","message":"Error merging orders: Validation error","timestamp":"2024-02-03T06:51:45.817Z"}
+{"level":"error","message":"Error merging cart: Validation error","timestamp":"2024-02-03T06:51:45.817Z"}
+{"level":"error","message":"Error merging orders: Validation error","timestamp":"2024-02-03T06:53:53.017Z"}
+{"level":"error","message":"Error merging cart: Validation error","timestamp":"2024-02-03T06:53:53.018Z"}
+{"level":"error","message":"Error merging cart: Error merging cart","timestamp":"2024-02-03T06:56:37.959Z"}
+{"level":"error","message":"Error merging cart: Error merging cart","timestamp":"2024-02-03T06:58:45.707Z"}
+{"level":"error","message":"Error merging cart: Error merging cart","timestamp":"2024-02-03T07:01:55.133Z"}
+{"level":"error","message":"Error merging orders: SQLITE_ERROR: no such column: wa_id","timestamp":"2024-02-03T07:04:50.977Z"}
+{"level":"error","message":"Error merging cart: SQLITE_ERROR: no such column: wa_id","timestamp":"2024-02-03T07:04:50.977Z"}
+{"level":"error","message":"Error merging cart: Error merging cart","timestamp":"2024-02-03T07:06:12.828Z"}
+{"level":"error","message":"Error merging cart: Error merging cart","timestamp":"2024-02-03T07:08:30.095Z"}
+{"level":"error","message":"Error checking order id: Attempted a SELECT query for model 'orders' as `orders` without selecting any columns","timestamp":"2024-02-03T07:19:29.033Z"}
+{"level":"error","message":"Button title not supported","timestamp":"2024-02-03T07:21:14.699Z"}
+{"level":"error","message":"Error when action not supported: payload is not defined","timestamp":"2024-02-03T07:38:16.865Z"}
+{"level":"error","message":"Error sending action not supported message: Error building action not supported struct","timestamp":"2024-02-03T07:38:16.867Z"}
+{"level":"error","message":"Error sending message: 400 - {\"error\":{\"message\":\"The parameter to is required.\",\"type\":\"OAuthException\",\"code\":100,\"fbtrace_id\":\"AupvLlu-dovMqM8BRde4kIL\"}}","timestamp":"2024-02-03T07:45:43.675Z"}
+{"level":"error","message":"Error sending action not supported message: Error sending action not supported message","timestamp":"2024-02-03T07:45:43.677Z"}
+{"level":"error","message":"No order items found","timestamp":"2024-02-03T08:08:40.095Z"}
+{"level":"error","message":"No order items found","timestamp":"2024-02-03T08:08:49.717Z"}
+{"level":"error","message":"No order items found","timestamp":"2024-02-03T08:16:36.482Z"}
+{"level":"error","message":"No order items found","timestamp":"2024-02-03T08:16:41.391Z"}
+{"level":"error","message":"Error handling button_reply: Transaction cannot be rolled back because it has been finished with state: commit","timestamp":"2024-02-03T08:16:53.121Z"}
+{"level":"error","message":"No order items found","timestamp":"2024-02-03T08:19:28.506Z"}
+{"level":"error","message":"No order items found","timestamp":"2024-02-03T08:19:38.126Z"}
+{"level":"error","message":"Error adding address to order : No order found","timestamp":"2024-02-03T08:20:30.759Z"}
+{"level":"error","message":"Error updating address : saved_address_id","timestamp":"2024-02-03T08:20:30.760Z"}
+{"level":"error","message":"More than one cart found","timestamp":"2024-02-03T08:30:08.902Z"}
+{"level":"error","message":"Error updating address : saved_address_id","timestamp":"2024-02-03T08:30:08.904Z"}
+{"level":"error","message":"No last order found","timestamp":"2024-02-03T08:30:50.717Z"}
+{"level":"error","message":"No order items found","timestamp":"2024-02-03T08:31:00.899Z"}
+{"level":"info","message":"User requested help","timestamp":"2024-02-03T08:31:50.475Z"}
+{"level":"error","message":"Error getting catalog products: Request failed with status code 400","timestamp":"2024-02-03T09:51:00.860Z"}
+{"level":"error","message":"Error getting catalog products: Request failed with status code 400","timestamp":"2024-02-03T09:58:03.764Z"}
+{"level":"error","message":"Error getting catalog products: Request failed with status code 400","timestamp":"2024-02-03T09:58:37.291Z"}
+{"level":"error","message":"Error getting catalog products: Request failed with status code 400","timestamp":"2024-02-03T09:59:04.580Z"}
+{"level":"error","message":"Error getting catalog products: Request failed with status code 400","timestamp":"2024-02-03T09:59:09.841Z"}
+{"level":"error","message":"Error getting catalog products: Request failed with status code 400","timestamp":"2024-02-03T10:02:38.621Z"}
+{"level":"error","message":"Error getting catalog products: Request failed with status code 400","timestamp":"2024-02-03T10:03:50.927Z"}
+{"level":"error","message":"Error getting catalog products: AxiosError: Request failed with status code 400","timestamp":"2024-02-03T10:03:57.892Z"}
+{"level":"error","message":"Error getting catalog products: Request failed with status code 400","timestamp":"2024-02-03T10:04:13.449Z"}
+{"level":"error","message":"Error getting catalog products: AxiosError: Request failed with status code 400","timestamp":"2024-02-03T10:04:40.911Z"}
+{"level":"error","message":"Error getting catalog products: Request failed with status code 400","timestamp":"2024-02-03T10:04:57.965Z"}
+{"level":"error","message":"Error getting catalog products: Request failed with status code 400","timestamp":"2024-02-03T10:05:44.405Z"}
+{"level":"error","message":"Error getting catalog products: Request failed with status code 400","timestamp":"2024-02-03T10:07:03.468Z"}
+{"level":"error","message":"Error getting catalog products: Request failed with status code 400","timestamp":"2024-02-03T10:08:30.943Z"}
+{"level":"error","message":"Error getting catalog products: Request failed with status code 400","timestamp":"2024-02-03T10:10:38.118Z"}
+{"level":"info","message":"Catalog products updated","timestamp":"2024-02-03T10:17:26.090Z"}
+{"level":"info","message":"Catalog products updated","timestamp":"2024-02-03T10:18:05.033Z"}
+{"level":"info","message":"Catalog products updated","timestamp":"2024-02-03T10:18:22.719Z"}
+{"level":"info","message":"Running cron jobs","timestamp":"2024-02-03T10:21:45.489Z"}
+{"level":"info","message":"Catalog products updated","timestamp":"2024-02-03T10:21:46.232Z"}
+{"level":"info","message":"Running cron jobs","timestamp":"2024-02-03T10:21:50.527Z"}
+{"level":"info","message":"Catalog products updated","timestamp":"2024-02-03T10:21:51.331Z"}
+{"level":"info","message":"Catalog products updated","timestamp":"2024-02-03T10:30:01.013Z"}
+{"level":"error","message":"Error getting order details: Cannot read properties of undefined (reading 'length')","timestamp":"2024-02-03T10:49:18.909Z"}
+{"level":"error","message":"Error informing admin: Error fetching order details","timestamp":"2024-02-03T10:49:18.910Z"}
+{"level":"error","message":"Error getting order details: Cannot read properties of undefined (reading 'length')","timestamp":"2024-02-03T10:53:25.284Z"}
+{"level":"error","message":"Error informing admin: Error fetching order details","timestamp":"2024-02-03T10:53:25.286Z"}
+{"level":"error","message":"Error sending message: 401 - {\"error\":{\"message\":\"Error validating access token: Session has expired on Saturday, 03-Feb-24 03:00:00 PST. The current time is Saturday, 03-Feb-24 03:03:48 PST.\",\"type\":\"OAuthException\",\"code\":190,\"error_subcode\":463,\"fbtrace_id\":\"AF5W1raq2b_CfwdO9SaPLj_\"}}","timestamp":"2024-02-03T11:03:48.896Z"}
+{"level":"error","message":"Error sending address message","timestamp":"2024-02-03T11:03:48.896Z"}
+{"level":"error","message":"Button title not supported","timestamp":"2024-02-03T11:13:28.048Z"}
+{"level":"error","message":"Button title not supported","timestamp":"2024-02-03T11:14:33.907Z"}
+{"level":"info","message":"Catalog products updated","timestamp":"2024-02-03T11:30:01.281Z"}
+{"level":"error","message":"Button title not supported","timestamp":"2024-02-03T11:38:08.173Z"}
+{"level":"error","message":"Error sending custom message: struct is not defined","timestamp":"2024-02-03T11:47:29.904Z"}
+{"level":"error","message":"Error sending custom message: struct is not defined","timestamp":"2024-02-03T11:47:58.047Z"}
