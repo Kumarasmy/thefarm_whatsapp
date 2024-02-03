@@ -2,7 +2,6 @@ const SQLite = require("sqlite3").verbose();
 
 new SQLite.Database("./src/database/the_farm.sqlite");
 
-
 module.exports = {
   development: {
     username: null,

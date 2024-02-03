@@ -4,8 +4,7 @@ const { updateCatalogProducts } = require("./products.cron");
 
 function startCronJobs() {
   try {
-    cron.schedule("0 * * * *", async () => {
-      //every hour
+    cron.schedule("0 * * * *", async () => { //every hour
       await updateCatalogProducts();
     });
   } catch (error) {

@@ -3,6 +3,7 @@ const {
   prefix,
   serviceable_pincodes,
   admins,
+  serviceable_pincodes_descriptions,
 } = require("../config/bot.config");
 const {
   buildCatalogStruct,
@@ -13,6 +14,8 @@ const {
   locationNotServiceableStruct,
   sendNewOrdersToAdmin,
   customTextMessageStruct,
+  orderHistoryStruct,
+  liveOrderStruct,
 } = require("./embed.functions");
 const { sendMessage } = require("./axios.functions");
 const {
@@ -28,6 +31,8 @@ const {
   checkOrderStatus,
   cancelOrder,
   updateOrderStatus,
+  userOrderHistory,
+  userLiveOrders,
 } = require("./database.functions");
 const orderStatus = require("../constants/order_status.constants");
 const slashPrefix = "/";
@@ -80,11 +85,13 @@ async function handleAdminCommand(message) {
 }
 
 async function handleUserSlashCommand(message) {
-  const args = message.text.slice(slashPrefix.length).trim().split(/ +/);
+  const args = message.msg_body.slice(slashPrefix.length).trim().split(/ +/);
   const command = args.shift().toLowerCase();
-  console.log(command);
-  console.log(args);
-  // Implement user slash command logic
+  if (!command) {
+    logger.error(`Invalid command : ${command}`);
+    return;
+  }
+  await handleCommand(command, args, message);
 }
 
 async function handleUserTextCommand(message) {
@@ -511,6 +518,7 @@ async function validatePincode(pincode) {
   }
 }
 
+//Inform admin about new order
 async function informAdmin(message) {
   try {
     const orderDetails = await getOrderDetails(message.order_id);
@@ -690,5 +698,189 @@ async function updateDeliveredOrder(message) {
   } catch (error) {
     logger.error(`Error delivering order: ${error.message}`);
     return null;
+  }
+}
+
+//Commands related functions
+async function handleCommand(command, args, message) {
+  try {
+    if (!command) {
+      logger.error(`Invalid command`);
+      return null;
+    }
+
+    switch (command) {
+      case "help":
+        break;
+      case "orders":
+        await showAllLiveOrders(message);
+        break;
+      case "history":
+        await showOrderHistory(message);
+        break;
+      case "request_call":
+        await requestCallCommand(message);
+        break;
+      case "feedback":
+        break;
+      case "serviceable_areas":
+        await showServiceableAreas(message);
+        break;
+      default:
+        logger.error(`Command not supported : ${command}`);
+        break;
+    }
+  } catch (error) {
+    logger.error(`Error handling command: ${error.message}`);
+    return null;
+  }
+}
+
+async function showOrderHistory(message) {
+  try {
+    const orders = await userOrderHistory(message.wa_id);
+
+    if (!orders || orders.length === 0) {
+      const customMessage = {
+        to: message.wa_id,
+        body: `No previous orders found`,
+      };
+
+      return await sendCustomMessage(customMessage);
+    }
+
+    let chunk = 15;
+    for (let i = 0; i < orders.length; i += chunk) {
+      const structObj = {
+        to: message.wa_id,
+        orderHistory: orders.slice(i, i + chunk),
+      };
+      const payload = orderHistoryStruct(structObj);
+
+      if (!payload) {
+        logger.error(`Error building order history struct`);
+        return;
+      }
+
+      await sendMessage(payload);
+    }
+
+    return true;
+  } catch (error) {
+    logger.error(`Error showing order history: ${error.message}`);
+    return null;
+  }
+}
+
+async function requestCallCommand(message) {
+  try {
+    const customMessage = {
+      to: message.wa_id,
+      body: `Call request received, our team will contact you soon\n\nThank you for reaching out to us`,
+    };
+
+    await sendCustomMessage(customMessage);
+
+    if (!admins || admins.length === 0) {
+      logger.error(`No admins found to send call request`);
+      return;
+    }
+
+    for (let i = 0; i < admins.length; i++) {
+      const customMessage = {
+        to: admins[i],
+        body: `New call request received 📞:\n\nFrom: ${message.wa_id}\n\nName: ${message.name}`,
+      };
+
+      await sendCustomMessage(customMessage);
+
+      if (!sendToAdmin) {
+        logger.error(`Error sending message to admin`);
+        return;
+      }
+    }
+
+    return true;
+  } catch (error) {
+    logger.error(`Error requesting call: ${error.message}`);
+    return null;
+  }
+}
+
+async function showServiceableAreas(message) {
+  try {
+    if (
+      !serviceable_pincodes_descriptions ||
+      !Array.isArray(serviceable_pincodes_descriptions)
+    ) {
+      logger.error(`Serviceable areas not found or invalid in config`);
+      return;
+    }
+
+    let body = "We are currently serving in the following areas:\n\n";
+
+    serviceable_pincodes_descriptions.forEach((pincode) => {
+      const emojiSpace = "\u00A0"; // Unicode non-breaking space
+      body += `📍 *${pincode.pincodeName}* (${pincode.pincode})\n`;
+
+      if (pincode.isPincodeCoveredFully) {
+        body += `${emojiSpace.repeat(7)}Deliverable to all areas\n\n`;
+      } else {
+        if (pincode.CoveredAreas && pincode.CoveredAreas.length > 0) {
+          body += `${emojiSpace.repeat(7)}Deliverable to:\n`;
+          pincode.CoveredAreas.forEach((area) => {
+            body += `${emojiSpace.repeat(8)}- ${area}\n`;
+          });
+        }
+      }
+    });
+
+    const structObj = {
+      to: message.wa_id,
+      body: body,
+    };
+
+    await sendCustomMessage(structObj);
+  } catch (error) {
+    logger.error(`Error showing serviceable areas: ${error.message}`);
+  }
+}
+
+async function showAllLiveOrders(message) {
+  try {
+    const orders = await userLiveOrders(message.wa_id);
+
+    if (!orders || orders.length === 0) {
+      const customMessage = {
+        to: message.wa_id,
+        body: `No live orders found`,
+      };
+
+      return await sendCustomMessage(customMessage);
+    }
+
+    //loop and send each order
+    for (let i = 0; i < orders.length; i++) {
+      const structObj = {
+        to: message.wa_id,
+        order_id: orders[i].order_id,
+        products: orders[i].products,
+        delivery_address: orders[i].delivery_address,
+        total: orders[i].order_amount,
+        created_at: orders[i].created_at,
+      };
+      const payload = liveOrderStruct(structObj);
+
+      if (!payload) {
+        logger.error(`Error building live order struct`);
+        return;
+      }
+
+      await sendMessage(payload);
+    }
+
+    return true;
+  } catch (error) {
+    logger.error(`Error showing live orders: ${error.message}`);
   }
 }

@@ -263,7 +263,7 @@ function locationNotServiceableStruct(payload) {
       type: "text",
       text: {
         preview_url: false,
-        body: `Sorry, we do not deliver to this location. Please choose another location.\n\n\nUse */serviceable areas* command to check our serviceable areas.`,
+        body: `Sorry, we do not deliver to this location. Please choose another location.\n\n\nType *'/serviceable_areas'* to see the list of serviceable areas.`,
       },
     };
 
@@ -328,14 +328,13 @@ function sendNewOrdersToAdmin(payload) {
     logger.error(`Error when building new orders struct: ${error.message}`);
     return null;
   }
-};
-
+}
 
 /*
-  * @param {object} payload
-  * @param {string} payload.to
-  * @param {string} payload.body
-  */
+ * @param {object} payload
+ * @param {string} payload.to
+ * @param {string} payload.body
+ */
 
 function customTextMessageStruct(payload) {
   try {
@@ -352,7 +351,92 @@ function customTextMessageStruct(payload) {
 
     return struct;
   } catch (error) {
-    logger.error(`Error when building custom text message struct: ${error.message}`);
+    logger.error(
+      `Error when building custom text message struct: ${error.message}`
+    );
+    return null;
+  }
+}
+
+/*
+ * @param {object} payload
+ * @param {string} payload.to
+ * @param {array} payload.orderHistory [array of obj with order_id,created_at,order_amount,order_status,delivery_address,products(name,quantity,item_price)]
+ */
+
+function orderHistoryStruct(payload) {
+  try {
+    const orderDetails = payload.orderHistory.map((order) => {
+      const productsList = order.products
+        .map(
+          (product) =>
+            `${product.name} x ${product.quantity} - ₹${product.item_price}`
+        )
+        .join("\n");
+
+      return `Order ID: ${order.order_id}\nDate: ${order.created_at}\nAmount: ₹${order.order_amount}\nStatus: ${order.order_status}\nProducts:\n${productsList}\n\n`;
+    });
+
+    const struct = {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: payload.to,
+      type: "text",
+      text: {
+        preview_url: false,
+        body: `📦 Your order history:\n\n${orderDetails.join("")}`,
+      },
+    };
+
+    return struct;
+  } catch (error) {
+    logger.error(`Error when building order history struct: ${error.message}`);
+    return null;
+  }
+}
+
+/*
+ * @param {object} payload
+ * @param {string} payload.to
+ * @param {string} payload.order_id
+ * @param {array} payload.products
+ */
+
+function liveOrderStruct(payload) {
+  try {
+    const productsString = payload.products
+      .map((product) => {
+        return `${product.name} x ${product.quantity} - ₹${product.item_price}`;
+      })
+      .join("\n");
+
+    const struct = {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: payload.to,
+      type: "interactive",
+      interactive: {
+        type: "button",
+        body: {
+          text: `Order ID: ${payload.order_id}    (${payload.created_at})\n\nProducts:\n${productsString}\n\nTotal: ₹${payload.total}\n\nAddress:\n\n${payload.delivery_address}`,
+        },
+        action: {
+          buttons: [
+            {
+              type: "reply",
+              reply: {
+                id: `cancel-${payload.order_id}`,
+                title: "Cancel",
+              },
+            },
+          ],
+        },
+      },
+    };
+
+    return struct;
+  } catch (error) {
+    logger.error(`Error when building live orders struct: ${error.message}`);
     return null;
   }
 }
@@ -367,4 +451,6 @@ module.exports = {
   locationNotServiceableStruct,
   sendNewOrdersToAdmin,
   customTextMessageStruct,
+  orderHistoryStruct,
+  liveOrderStruct,
 };

@@ -65,3 +65,27 @@
 {"level":"error","message":"Button title not supported","timestamp":"2024-02-03T11:38:08.173Z"}
 {"level":"error","message":"Error sending custom message: struct is not defined","timestamp":"2024-02-03T11:47:29.904Z"}
 {"level":"error","message":"Error sending custom message: struct is not defined","timestamp":"2024-02-03T11:47:58.047Z"}
+{"level":"error","message":"Error sending message: 401 - {\"error\":{\"message\":\"Error validating access token: Session has expired on Saturday, 03-Feb-24 05:00:00 PST. The current time is Saturday, 03-Feb-24 05:28:42 PST.\",\"type\":\"OAuthException\",\"code\":190,\"error_subcode\":463,\"fbtrace_id\":\"AjZsHML2DE5RhRXPecn6Vnu\"}}","timestamp":"2024-02-03T13:28:42.843Z"}
+{"level":"error","message":"Error handling request: Error sending message to user","timestamp":"2024-02-03T13:28:42.844Z"}
+{"level":"error","message":"Error sending message: 401 - {\"error\":{\"message\":\"Error validating access token: Session has expired on Saturday, 03-Feb-24 05:00:00 PST. The current time is Saturday, 03-Feb-24 05:29:18 PST.\",\"type\":\"OAuthException\",\"code\":190,\"error_subcode\":463,\"fbtrace_id\":\"A2OV52tCvMTS1bssNOrne0v\"}}","timestamp":"2024-02-03T13:29:18.886Z"}
+{"level":"error","message":"Error handling request: Error sending message to user","timestamp":"2024-02-03T13:29:18.886Z"}
+{"level":"error","message":"Error getting catalog products: Request failed with status code 400","timestamp":"2024-02-03T13:30:00.874Z"}
+{"level":"error","message":"Error sending message: 400 - {\"error\":{\"message\":\"Unsupported post request. Object with ID '236228429565370' does not exist, cannot be loaded due to missing permissions, or does not support this operation. Please read the Graph API documentation at https://developers.facebook.com/docs/graph-api\",\"type\":\"GraphMethodException\",\"code\":100,\"error_subcode\":33,\"fbtrace_id\":\"ADeZX4Trb3Z8MTlMpcMPfQ0\"}}","timestamp":"2024-02-03T13:37:23.429Z"}
+{"level":"error","message":"Error handling request: Error sending message to user","timestamp":"2024-02-03T13:37:23.430Z"}
+{"level":"error","message":"Error handling request: Cannot read properties of undefined (reading 'slice')","timestamp":"2024-02-03T13:41:31.739Z"}
+{"level":"error","message":"Error requesting call: sendToAdmin is not defined","timestamp":"2024-02-03T14:17:41.252Z"}
+{"level":"error","message":"Error requesting call: sendToAdmin is not defined","timestamp":"2024-02-03T14:18:43.970Z"}
+{"level":"info","message":"Catalog products updated","timestamp":"2024-02-03T14:30:01.016Z"}
+{"level":"error","message":"Command not supported : order","timestamp":"2024-02-03T14:46:44.428Z"}
+{"level":"error","message":"Error requesting call: sendToAdmin is not defined","timestamp":"2024-02-03T14:47:14.445Z"}
+{"level":"error","message":"Error requesting call: sendToAdmin is not defined","timestamp":"2024-02-03T14:47:17.660Z"}
+{"level":"error","message":"Error sending custom message: Invalid payload","timestamp":"2024-02-03T15:16:20.728Z"}
+{"level":"info","message":"Catalog products updated","timestamp":"2024-02-03T15:30:01.304Z"}
+{"level":"error","message":"Error handling command: showSericeableAreas is not defined","timestamp":"2024-02-03T15:30:11.708Z"}
+{"level":"info","message":"Catalog products updated","timestamp":"2024-02-03T16:24:01.229Z"}
+{"level":"info","message":"Catalog products updated : 2024-02-03T16:24:01.229Z","timestamp":"2024-02-03T16:24:01.230Z"}
+{"level":"info","message":"Catalog products updated","timestamp":"2024-02-03T16:25:01.333Z"}
+{"level":"info","message":"Catalog products updated : 2024-02-03T16:25:01.333Z","timestamp":"2024-02-03T16:25:01.333Z"}
+{"level":"info","message":"Catalog products updated : 2024-02-03T16:30:01.058Z","timestamp":"2024-02-03T16:30:01.060Z"}
+{"level":"error","message":"Error when building live orders struct: Cannot read properties of undefined (reading 'map')","timestamp":"2024-02-03T16:42:42.768Z"}
+{"level":"error","message":"Error building live order struct","timestamp":"2024-02-03T16:42:42.769Z"}

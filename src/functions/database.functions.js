@@ -8,7 +8,7 @@ const {
   calatog_products,
 } = require("../models");
 
-const { logger } = require("../utils");
+const { logger, manipulateDate } = require("../utils");
 const { Op } = require("sequelize");
 
 async function checkUser(payload) {
@@ -487,6 +487,7 @@ async function checkOrderStatus(order_id) {
  * @param {string} payload.cancel_reason
  * @param {string} payload.cancelled_by
  */
+
 async function cancelOrder(payload) {
   const transaction = await sequelize.transaction();
   try {
@@ -563,6 +564,151 @@ async function updateOrderStatus(payload) {
   }
 }
 
+async function userOrderHistory(wa_id) {
+  try {
+    const ordersList = await orders.findAll({
+      where: {
+        wa_id,
+      },
+      attributes: ["order_id", "order_status", "order_amount", "createdAt"],
+      include: [
+        {
+          required: false,
+          model: order_items,
+          as: "order_items",
+          attributes: ["product_retailer_id", "quantity", "item_price"],
+          include: [
+            {
+              required: false,
+              model: calatog_products,
+              as: "product",
+              attributes: ["name"],
+            },
+          ],
+        },
+      ],
+    });
+
+    if (!ordersList || ordersList.length === 0) {
+      return null;
+    }
+
+    let result = [];
+
+    for (let i = 0; i < ordersList.length; i++) {
+      let products = [];
+      for (let j = 0; j < ordersList[i].order_items.length; j++) {
+        let product = ordersList[i].order_items[j].product;
+        if (product) {
+          products.push({
+            name: product.name,
+            quantity: ordersList[i].order_items[j].quantity,
+            item_price: ordersList[i].order_items[j].item_price,
+          });
+        } else {
+          products.push({
+            name: `"N/A"-${ordersList[i].order_items[j].product_retailer_id}`,
+            quantity: ordersList[i].order_items[j].quantity,
+            item_price: ordersList[i].order_items[j].item_price,
+          });
+        }
+      }
+
+      result.push({
+        order_id: ordersList[i].order_id,
+        created_at: ordersList[i].createdAt.toDateString(),
+        order_status: ordersList[i].order_status,
+        order_amount: ordersList[i].order_amount,
+        products,
+      });
+    }
+
+    return result;
+  } catch (error) {
+    logger.error(`Error getting user order history : ${error.message}`);
+    return null;
+  }
+}
+
+async function userLiveOrders(wa_id) {
+  try {
+    const ordersList = await orders.findAll({
+      where: {
+        wa_id,
+        order_status: {
+          [Op.in]: [
+            order_statusConstants.PENDING,
+            order_statusConstants.CONFIRMED,
+          ],
+        },
+      },
+      attributes: [
+        "order_id",
+        "order_status",
+        "order_amount",
+        "createdAt",
+        "delivery_address",
+      ],
+      include: [
+        {
+          required: false,
+          model: order_items,
+          as: "order_items",
+          attributes: ["product_retailer_id", "quantity", "item_price"],
+          include: [
+            {
+              required: false,
+              model: calatog_products,
+              as: "product",
+              attributes: ["name"],
+            },
+          ],
+        },
+      ],
+    });
+
+    if (!ordersList || ordersList.length === 0) {
+      return null;
+    }
+
+    let result = [];
+
+    for (let i = 0; i < ordersList.length; i++) {
+      let products = [];
+      for (let j = 0; j < ordersList[i].order_items.length; j++) {
+        let product = ordersList[i].order_items[j].product;
+        if (product) {
+          products.push({
+            name: product.name,
+            quantity: ordersList[i].order_items[j].quantity,
+            item_price: ordersList[i].order_items[j].item_price,
+          });
+        } else {
+          products.push({
+            name: `"N/A"-${ordersList[i].order_items[j].product_retailer_id}`,
+            quantity: ordersList[i].order_items[j].quantity,
+            item_price: ordersList[i].order_items[j].item_price,
+          });
+        }
+      }
+
+      result.push({
+        order_id: ordersList[i].order_id,
+        created_at: manipulateDate(ordersList[i].createdAt),
+        order_status: ordersList[i].order_status,
+        order_amount: ordersList[i].order_amount,
+        products,
+        delivery_address: ordersList[i].delivery_address,
+      });
+    }
+
+    return result;
+  } catch (error) {
+    logger.error(`Error getting user live orders : ${error.message}`);
+    return null;
+  }
+}
+
 module.exports = {
   checkUser,
   getUserAddress,
@@ -577,4 +723,6 @@ module.exports = {
   checkOrderStatus,
   cancelOrder,
   updateOrderStatus,
+  userOrderHistory,
+  userLiveOrders,
 };
