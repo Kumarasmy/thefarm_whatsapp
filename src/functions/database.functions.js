@@ -14,7 +14,7 @@ const { Op } = require("sequelize");
 async function checkUser(payload) {
   try {
     const user = await users.findByPk(payload.wa_id, {
-      attributes: ["wa_id", "name", "is_admin", "is_active"],
+      attributes: ["wa_id", "name", "is_admin", "is_active", "language"],
       raw: true,
     });
     if (user) {
@@ -709,6 +709,39 @@ async function userLiveOrders(wa_id) {
   }
 }
 
+async function checkLanguage(wa_id) {
+  try {
+    const user = await users.findByPk(wa_id, {
+      attributes: ["language"],
+      raw: true,
+    });
+
+    return !!user.language;
+  } catch (error) {
+    logger.error(`Error checking user: ${error.message}`);
+    return null;
+  }
+}
+
+async function setLanguage(wa_id, language) {
+  try {
+    await users.update(
+      {
+        language,
+      },
+      {
+        where: {
+          wa_id,
+        },
+      }
+    );
+    return true;
+  } catch (error) {
+    logger.error(`Error setting language: ${error.message}`);
+    return null;
+  }
+}
+
 module.exports = {
   checkUser,
   getUserAddress,
@@ -725,4 +758,6 @@ module.exports = {
   updateOrderStatus,
   userOrderHistory,
   userLiveOrders,
+  checkLanguage,
+  setLanguage,
 };

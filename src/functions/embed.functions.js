@@ -1,14 +1,21 @@
 const { logger } = require("../utils");
+const {bussinessName} = require("../config/bot.config");
 
 /*
  * @param {object} payload
  * @param {string} payload.to
  * @param {string} payload.templateName
  * @param {object} payload.components
+ * @param {string} payload.language
  */
 
 function buildTemplateStruct(payload) {
   try {
+    let languageCode = "en";
+    if (payload.language) {
+      languageCode = payload.language;
+    }
+
     const struct = {
       messaging_product: "whatsapp",
       recipient_type: "individual",
@@ -17,7 +24,7 @@ function buildTemplateStruct(payload) {
       template: {
         name: payload.templateName,
         language: {
-          code: "en",
+          code: languageCode,
         },
       },
       components: payload.components,
@@ -32,19 +39,24 @@ function buildTemplateStruct(payload) {
 /*
  * @param {object} payload
  * @param {string} payload.to
+ * @param {string} payload.language
  */
 
 function buildCatalogStruct(payload) {
   try {
+    let languageCode = "en";
+    if (payload.language) {
+      languageCode = payload.language;
+    }
     const struct = {
       messaging_product: "whatsapp",
       recipient_type: "individual",
       to: payload.to,
       type: "template",
       template: {
-        name: "display_catalog_wo_variables", //TODO: change dynamically
+        name: "welcome_catalog", //TODO: change dynamically
         language: {
-          code: "en",
+          code: languageCode,
         },
 
         components: [
@@ -68,10 +80,22 @@ function buildCatalogStruct(payload) {
  * @param {string} payload.to
  * @param {array} payload.saved_address
  * @param {string} payload.name
+ * @param {string} payload.language
  */
 
 function buildAddressStruct(payload) {
   try {
+    let english =
+      "We received your cart details. Choose an address you'd like this order delivered to.👇";
+    let tamil =
+      "உங்கள் ஆர்டர் விவரங்களைப் பெற்றோம். இந்த ஆர்டரை வழங்க விரும்பும் முகவரியைத் தேர்வுசெய்யவும்.👇";
+
+    let bodyText = english;
+
+    if (payload.language === "ta") {
+      bodyText = tamil;
+    }
+
     const struct = {
       messaging_product: "whatsapp",
       recipient_type: "individual",
@@ -80,7 +104,7 @@ function buildAddressStruct(payload) {
       interactive: {
         type: "address_message",
         body: {
-          text: "We received your cart details. Choose an address you'd like this order delivered to.",
+          text: bodyText,
         },
         action: {
           name: "address_message",
@@ -114,6 +138,7 @@ function buildAddressStruct(payload) {
  * @param {array} payload.previousItems
  * @param {array} payload.currentItems
  * @param {string} payload.previousItems[0].order_id
+ * @param {string} payload.language
  */
 
 function buildMergeOrContinueStruct(payload) {
@@ -134,7 +159,6 @@ function buildMergeOrContinueStruct(payload) {
     }
 
     if (previousItems && previousItems.length > 0) {
-      // ID1-ID2-ID3 format remove duplicates order ids and remove last -
       let uniqueOrderIds = [
         ...new Set(previousItems.map((item) => item.order_id)),
       ];
@@ -162,6 +186,22 @@ function buildMergeOrContinueStruct(payload) {
 
     mergeCartTotal = previousCartTotal + currentCartTotal;
 
+    let english = `You have an existing cart items worth *₹${previousCartTotal}*. Do you want to merge or continue? \n\n\nPrevious cart total: *₹${previousCartTotal}*\nCurrent cart total: *₹${currentCartTotal}*\nMerge cart total: *₹${mergeCartTotal}*`;
+    let tamil = `உங்களிடம் ஏற்கனவே உள்ள கார்ட்டில் *₹${previousCartTotal}* மதிப்புக்களம் உள்ளது. நீங்கள் அதை ஒன்றிணைக்க வேண்டுமா அல்லது தொடர வேண்டுமா? \n\n\nமுந்தைய கார்டின் மதிப்பு: *₹${previousCartTotal}*\nதற்போதைய கார்டின் மதிப்பு: *₹${currentCartTotal}*\nஒன்றிணைக்கபட்ட கார்டின் மதிப்பு: *₹${mergeCartTotal}*`;
+    let mergeBtnTitleEn = "Merge cart";
+    let mergeBtnTitleTa = "ஒன்றிணைக்க";
+    let continueBtnTitleEn = "Continue cart";
+    let continueBtnTitleTa = "தொடர";
+    let bodyText = english;
+    let mergeBtnTitle = mergeBtnTitleEn;
+    let continueBtnTitle = continueBtnTitleEn;
+
+    if (payload.language === "ta") {
+      bodyText = tamil;
+      mergeBtnTitle = mergeBtnTitleTa;
+      continueBtnTitle = continueBtnTitleTa;
+    }
+
     const struct = {
       messaging_product: "whatsapp",
       recipient_type: "individual",
@@ -170,7 +210,7 @@ function buildMergeOrContinueStruct(payload) {
       interactive: {
         type: "button",
         body: {
-          text: `You have an existing cart items worth ₹${previousCartTotal}. Do you want to merge or continue? \n\n\nPrevious cart total: ₹${previousCartTotal}\nCurrent cart total: ₹${currentCartTotal}\nMerge cart total: ₹${mergeCartTotal}`,
+          text: bodyText,
         },
         action: {
           buttons: [
@@ -178,14 +218,14 @@ function buildMergeOrContinueStruct(payload) {
               type: "reply",
               reply: {
                 id: `merge-${previousItemsOrderIds}`,
-                title: "Merge cart",
+                title: mergeBtnTitle,
               },
             },
             {
               type: "reply",
               reply: {
                 id: `continue-${currentItemsOrderId}`,
-                title: "Continue cart",
+                title: continueBtnTitle,
               },
             },
           ],
@@ -204,11 +244,21 @@ function buildMergeOrContinueStruct(payload) {
   * @param {string} payload
   * @param {array} payload.to
   * @param {array} payload.order_id
+  * @param {array} payload.language
   
 */
 
 function buildOrdeConfirmedStruct(payload) {
   try {
+    let english = `🛍️ Order confirmed! Your order *${payload.order_id}* has been successfully placed.`;
+    let tamil = `🛍️ ஆர்டர் உறுதிசெய்யப்பட்டது! உங்கள் ஆர்டர் *${payload.order_id}* வெற்றிகரமாக முடிந்தது.`;
+
+    let bodyText = english;
+
+    if (payload.user.language === "ta") {
+      bodyText = tamil;
+    }
+
     const struct = {
       messaging_product: "whatsapp",
       recipient_type: "individual",
@@ -216,7 +266,7 @@ function buildOrdeConfirmedStruct(payload) {
       type: "text",
       text: {
         preview_url: false,
-        body: `🛍️ Order confirmed! Your order *${payload.order_id}* has been successfully placed.`,
+        body: bodyText,
       },
     };
 
@@ -254,8 +304,22 @@ function actionNotSupportedStruct(payload) {
   }
 }
 
+/*
+  * @param {string} payload
+  * @param {array} payload.to
+  * @param {array} payload.language
+  * @param {array} payload.order_id
+*/
 function locationNotServiceableStruct(payload) {
   try {
+    let english = `Sorry, we do not deliver to this location. Please choose another location.\n\n\nType *'/serviceable_areas'* to see the list of serviceable areas.`;
+    let tamil = `மன்னிக்கவும், இந்த இடத்திற்கு விநியோகம் செய்ய முடியவில்லை. மற்றொரு இடத்தைத் தேர்ந்தெடுக்கவும்.\n\n\nசேவையாகும் பகுதிகளின் பட்டியலைப் பார்க்க *'/serviceable_areas'* என்று தட்டச்சு செய்க.`;
+
+    let bodyText = english;
+
+    if (payload.language === "ta") {
+      bodyText = tamil;
+    }
     const struct = {
       messaging_product: "whatsapp",
       recipient_type: "individual",
@@ -263,7 +327,7 @@ function locationNotServiceableStruct(payload) {
       type: "text",
       text: {
         preview_url: false,
-        body: `Sorry, we do not deliver to this location. Please choose another location.\n\n\nType *'/serviceable_areas'* to see the list of serviceable areas.`,
+        body: bodyText,
       },
     };
 
@@ -441,6 +505,137 @@ function liveOrderStruct(payload) {
   }
 }
 
+/*
+ * @param {object} payload
+ * @param {string} payload.to
+ */
+
+function selectLanguageStruct(payload) {
+  try {
+    const text = `Please select your language to continue 👇`;
+
+    const struct = {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: payload.to,
+      type: "interactive",
+      interactive: {
+        type: "button",
+        body: {
+          text: text,
+        },
+        action: {
+          buttons: [
+            {
+              type: "reply",
+              reply: {
+                id: `language-ta`,
+                title: "தமிழ்",
+              },
+            },
+            {
+              type: "reply",
+              reply: {
+                id: `language-en`,
+                title: "English",
+              },
+            },
+          ],
+        },
+      },
+    };
+    return struct;
+  } catch (error) {
+    logger.error(
+      `Error when building select language struct: ${error.message}`
+    );
+    return null;
+  }
+}
+
+/*
+ * @param {object} payload
+ * @param {string} payload.to
+ * @param {string} payload.language
+ */
+
+function languageChangedNotificationStruct(payload) {
+  try {
+    let english = `Language changed to English`;
+    let tamil = `மொழி மாற்றப்பட்டது`;
+
+    let bodyText = english;
+
+    if (payload.language === "ta") {
+      bodyText = tamil;
+    }
+
+    const struct = {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: payload.to,
+      type: "text",
+      text: {
+        preview_url: false,
+        body: bodyText,
+      },
+    };
+
+    return struct;
+  } catch (error) {
+    logger.error(
+      `Error when building language changed notification struct: ${error.message}`
+    );
+    return null;
+  }
+}
+
+/*
+  * @param {object} payload
+  * @param {string} payload.to
+  */
+
+function requestWelcomeStruct(payload) {
+  try {
+    const text = `Hi there! Welcome to the official WhatsApp store of *${bussinessName}*.\n\nPlease select your language to continue 👇`;
+
+    const struct = {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: payload.to,
+      type: "interactive",
+      interactive: {
+        type: "button",
+        body: {
+          text: text,
+        },
+        action: {
+          buttons: [
+            {
+              type: "reply",
+              reply: {
+                id: `language-ta`,
+                title: "தமிழ்",
+              },
+            },
+            {
+              type: "reply",
+              reply: {
+                id: `language-en`,
+                title: "English",
+              },
+            },
+          ],
+        },
+      },
+    };
+    return struct;
+  } catch (error) {
+    logger.error(`Error building welcome struct: ${error.message}`);
+    return null;
+  }
+}
+
 module.exports = {
   buildTemplateStruct,
   buildCatalogStruct,
@@ -453,4 +648,7 @@ module.exports = {
   customTextMessageStruct,
   orderHistoryStruct,
   liveOrderStruct,
+  selectLanguageStruct,
+  languageChangedNotificationStruct,
+  requestWelcomeStruct
 };

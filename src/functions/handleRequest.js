@@ -16,8 +16,13 @@ const {
   customTextMessageStruct,
   orderHistoryStruct,
   liveOrderStruct,
+  selectLanguageStruct,
+  languageChangedNotificationStruct,
+  requestWelcomeStruct,
 } = require("./embed.functions");
+
 const { sendMessage } = require("./axios.functions");
+
 const {
   saveAddress,
   createOrder,
@@ -33,13 +38,15 @@ const {
   updateOrderStatus,
   userOrderHistory,
   userLiveOrders,
+  checkLanguage,
+  setLanguage,
 } = require("./database.functions");
 const orderStatus = require("../constants/order_status.constants");
 const slashPrefix = "/";
 
-exports.handleRequest = async (user, message) => {
+exports.handleRequest = async (message) => {
   try {
-    if (!user || !message) {
+    if (!message || !message.user) {
       logger.error(`Invalid user or message`);
       return null;
     }
@@ -53,10 +60,9 @@ exports.handleRequest = async (user, message) => {
         } else {
           await handleUserTextCommand(message);
         }
-
         break;
       case "request_welcome":
-        await sendCatalog(message);
+        await handleRequestWelcome(message);
         break;
 
       case "order":
@@ -99,13 +105,20 @@ async function handleUserTextCommand(message) {
     logger.info(`User requested help`);
     //   await sendHelp(message);
   } else {
-    await sendCatalog(message);
+    const isLanguageSelected = await checkLanguage(message.wa_id);
+    if (!isLanguageSelected) {
+      await sendLanguageSelection(message);
+    } else {
+      await sendCatalog(message);
+    }
   }
 }
 
 async function sendCatalog(message) {
+  
   const templatePayload = buildCatalogStruct({
     to: message.wa_id,
+    language: message.user.language,
   });
 
   if (!templatePayload) {
@@ -127,7 +140,7 @@ async function handleInteractiveMessage(message) {
     } else if (message.buttonType === "nfm_reply") {
       await handleNFMReply(message);
     } else {
-      logger.error(`button type not supported`);
+      logger.error(`button type not supported : ${message.buttonType}`);
       return;
     }
   } else {
@@ -228,6 +241,7 @@ async function handleOrder(message) {
         to: message.wa_id,
         previousItems: previousItems,
         currentItems: currentItems,
+        language: message.user.language,
       };
 
       const payload = buildMergeOrContinueStruct(structObj);
@@ -255,6 +269,7 @@ async function proceedToAddress(message) {
     let addressObj = {
       to: message.wa_id,
       name: message.name || "",
+      language: message.user.language,
     };
     const userAddress = await getUserAddress(message.wa_id);
     if (userAddress && userAddress.length > 0) {
@@ -368,7 +383,7 @@ async function sendOrderConfirmationMsg(message) {
   }
 }
 
-//
+
 async function mergeCart(message) {
   try {
     const response = message.buttonResponse;
@@ -436,10 +451,10 @@ async function handleButtonReply(message) {
     const response = message.buttonResponse;
 
     if (response && response.title) {
-      if (response.title.toLowerCase() === "merge cart") {
+      if (response.title.toLowerCase() === "merge cart" || response.title.toLowerCase() === "ஒன்றிணைக்க") {
         await mergeCart(message); //merges cart and sends address message
         return;
-      } else if (response.title.toLowerCase() === "continue cart") {
+      } else if (response.title.toLowerCase() === "continue cart" || response.title.toLowerCase() === "தொடர") {
         await continueCart(message); //removes previous cart and sends address message
       } else if (response.title.toLowerCase() === "reject") {
         await rejectOrCancelOrder(message);
@@ -447,8 +462,18 @@ async function handleButtonReply(message) {
       } else if (response.title.toLowerCase() === "delivered") {
         await updateDeliveredOrder(message);
         return;
+      } else if (
+        response.title.toLowerCase() === "english" ||
+        response.title.toLowerCase() === "தமிழ்"
+      ) {
+        let language = response.title.toLowerCase() === "english" ? "en" : "ta";
+
+        await setLanguagePreference(message, language);
+        message.user.language = language; //update language in message object
+        await sendCatalog(message);
+        return;
       } else {
-        logger.error(`Button title not supported`);
+        logger.error(`Button title not supported : ${response.title}`);
         return null;
       }
     }
@@ -487,6 +512,7 @@ async function locationNotServiceableMessage(message) {
   try {
     const templateObj = {
       to: message.wa_id,
+      language: message.user.language,
     };
     const templatePayload = locationNotServiceableStruct(templateObj);
 
@@ -726,6 +752,9 @@ async function handleCommand(command, args, message) {
       case "serviceable_areas":
         await showServiceableAreas(message);
         break;
+        case "language":
+          await sendLanguageSelection(message);
+          break;
       default:
         logger.error(`Command not supported : ${command}`);
         break;
@@ -882,5 +911,89 @@ async function showAllLiveOrders(message) {
     return true;
   } catch (error) {
     logger.error(`Error showing live orders: ${error.message}`);
+  }
+}
+
+async function sendLanguageSelection(message) {
+  try {
+    const templatePayload = selectLanguageStruct({
+      to: message.wa_id,
+    });
+
+    if (!templatePayload) {
+      throw new Error(`Error building language selection struct`);
+    }
+
+    const sendToUser = await sendMessage(templatePayload);
+
+    if (!sendToUser) {
+      throw new Error(`Error sending language selection message`);
+    }
+  } catch (error) {
+    logger.error(`Error sending language selection message: ${error.message}`);
+  }
+}
+
+async function setLanguagePreference(message, language) {
+  try {
+    if (!message.wa_id || !language) {
+      logger.error(`Invalid wa_id or language`);
+      return null;
+    }
+    await setLanguage(message.wa_id, language);
+
+    await notifyLanguageChanged(message, language);
+  } catch (error) {
+    logger.error(`Error setting language preference: ${error.message}`);
+    return null;
+  }
+}
+
+async function notifyLanguageChanged(message, language) {
+  try {
+    const templatePayload = languageChangedNotificationStruct({
+      to: message.wa_id,
+      language,
+    });
+
+    if (!templatePayload) {
+      throw new Error(`Error building language selection struct`);
+    }
+
+    const sendToUser = await sendMessage(templatePayload);
+
+    if (!sendToUser) {
+      throw new Error(`Error sending language selection message`);
+    }
+  } catch (error) {
+    logger.error(`Error sending language selection message: ${error.message}`);
+  }
+}
+
+
+async function handleRequestWelcome(message){
+  try {
+    if (!message) {
+      logger.error(`Invalid message for request welcome`);
+      return null;
+    }
+    const templatePayload = requestWelcomeStruct({
+      to : message.wa_id,
+    })
+
+    if (!templatePayload) {
+      throw new Error(`Error building template payload`);
+    }
+
+    const sendToUser = await sendMessage(templatePayload);
+
+    if (!sendToUser) {
+      throw new Error(`Error sending message to user`);
+    }
+    
+  } catch (error) {
+    logger.error(`Error handling request welcome: ${error.message}`);
+    return null;
+    
   }
 }

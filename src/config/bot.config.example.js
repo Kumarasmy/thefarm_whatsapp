@@ -7,6 +7,7 @@ module.exports = {
   serviceable_pincodes: ["6000119", "600053"],
   admins: ["918428719833"],
   masterCatalogIds: ["730957122326676"],
+  isMaintainanceMode: false, //bot will not respond to any messages if this is true
   serviceable_pincodes_descriptions: [
     {
       pincode: "",

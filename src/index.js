@@ -5,11 +5,12 @@ const port = 4000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 const { parseWebhook, checkUser } = require("./functions");
-
+const { isMaintainanceMode } = require("./config/bot.config");
 const { logger } = require("./utils");
 const { handleRequest } = require("./functions/handleRequest");
 
 const { startCronJobs } = require("./cron");
+const { updateCatalogProducts } = require("./cron/products.cron");
 
 app.get("/webhook", (req, res) => {
   const verifyToken = process.env.VERIFY_TOKEN;
@@ -30,15 +31,23 @@ app.get("/webhook", (req, res) => {
 app.post("/webhook", async (req, res) => {
   res.sendStatus(200);
 
+
   const response = parseWebhook(req.body);
   if (!response.wa_id || !response.from) {
     return;
   }
   const user = await checkUser(response);
 
-  await handleRequest(user, response);
-  console.log(response);
   console.log(user);
+  //if maintainance mode is on, and user is not admin, then return
+  if (isMaintainanceMode && !user.is_admin) {
+    return;
+  }
+  //combine user and response and send to handleRequest as a nested user object
+
+
+  await handleRequest({ ...response, user });
+
 });
 
 app.get("/", (req, res) => {
@@ -50,3 +59,4 @@ app.listen(port, () => {
 });
 
 startCronJobs();
+updateCatalogProducts(); //initial update

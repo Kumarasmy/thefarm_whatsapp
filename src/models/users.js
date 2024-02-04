@@ -18,6 +18,11 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         comment: "User Profile Name",
       },
+      language: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        comment: "Language",
+      },
       is_admin: {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
