@@ -38,11 +38,11 @@ app.post("/webhook", async (req, res) => {
   }
   const user = await checkUser(response);
 
-  console.log(user);
-  //if maintainance mode is on, and user is not admin, then return
-  if (isMaintainanceMode && !user.is_admin) {
-    return;
-  }
+  // console.log(user);
+  // //if maintainance mode is on, and user is not admin, then return
+  // if (isMaintainanceMode && !user.is_admin) {
+  //   return;
+  // }
   //combine user and response and send to handleRequest as a nested user object
 
 
