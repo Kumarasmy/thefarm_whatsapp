@@ -5,7 +5,7 @@ const port = 4000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 const { parseWebhook, checkUser } = require("./functions");
-const { isMaintainanceMode } = require("./config/bot.config");
+const { isMaintainanceMode,accessToken } = require("./config/bot.config");
 const { logger } = require("./utils");
 const { handleRequest } = require("./functions/handleRequest");
 
@@ -13,7 +13,8 @@ const { startCronJobs } = require("./cron");
 const { updateCatalogProducts } = require("./cron/products.cron");
 
 app.get("/webhook", (req, res) => {
-  const verifyToken = process.env.VERIFY_TOKEN;
+  console.log(`[GET] /webhook`);
+  const verifyToken = accessToken;
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
