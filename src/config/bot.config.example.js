@@ -16,4 +16,27 @@ module.exports = {
       CoveredAreas: [""], //if isPincodeCoveredFully is false, then this array should contain all the areas in the pincode
     },
   ],
+  payment: {
+    cashfree_config: {
+      prod: {
+        clientId: "",
+        clientSecret: "",
+        baseUrl: "https://api.cashfree.com/pg",
+        version: "2023-08-01", //v4
+      },
+      test: {
+        clientId: "268995875c7a6befb2f078ceb6599862",
+        clientSecret: "fe271df7130cafb8d9942d303a2957f7ac53f90d",
+        baseUrl: "https://sandbox.cashfree.com/pg",
+        version: "2023-08-01", //v4
+      },
+    },
+    enable_live_payment: false, //if true, then the bot will use the prod credentials for cashfree
+    available_methods: {
+      online: true,
+      cod: true,
+    },
+  },
 };
+
+//https://web.farm-kart.in/whatsapp/webhook

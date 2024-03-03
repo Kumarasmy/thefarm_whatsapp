@@ -42,12 +42,6 @@ async function cleanupLogs() {
   }
 }
 
-// Initialize log directory creation and log cleanup asynchronously
-// async function initialize() {
-//   await createLogDir();
-//   cleanupLogs(); // You can choose to run this synchronously or asynchronously
-// }
-
 const logger = createLogger({
   transports: [
     new transports.Console({
@@ -63,6 +57,7 @@ const logger = createLogger({
 });
 
 module.exports = {
-        logger
+        logger,
+        cleanupLogs
 }
 

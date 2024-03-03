@@ -1,5 +1,5 @@
 const { logger } = require("../utils");
-const {bussinessName} = require("../config/bot.config");
+const { bussinessName } = require("../config/bot.config");
 
 /*
  * @param {object} payload
@@ -305,11 +305,11 @@ function actionNotSupportedStruct(payload) {
 }
 
 /*
-  * @param {string} payload
-  * @param {array} payload.to
-  * @param {array} payload.language
-  * @param {array} payload.order_id
-*/
+ * @param {string} payload
+ * @param {array} payload.to
+ * @param {array} payload.language
+ * @param {array} payload.order_id
+ */
 function locationNotServiceableStruct(payload) {
   try {
     let english = `Sorry, we do not deliver to this location. Please choose another location.\n\n\nType *'/serviceable_areas'* to see the list of serviceable areas.`;
@@ -347,6 +347,7 @@ function locationNotServiceableStruct(payload) {
  * @param {array} payload.products
  * @param {string} payload.delivery_address
  * @param {number} payload.total
+ * @param {string} payload.payment_method
  */
 
 function sendNewOrdersToAdmin(payload) {
@@ -364,7 +365,7 @@ function sendNewOrdersToAdmin(payload) {
       interactive: {
         type: "button",
         body: {
-          text: `New order received 🎉\n\nDetails:\n\nName: ${payload.name}\nMobile: ${payload.from}\nOrder ID: ${payload.order_id}\n\nProducts:\n${productsString}\n\nTotal: ₹${payload.total}\n\nAddress:\n\n${payload.delivery_address}`,
+          text: `New order received 🎉\n\nDetails:\n\nName: ${payload.name}\nMobile: ${payload.from}\nOrder ID: ${payload.order_id}\n\nProducts:\n${productsString}\n\nTotal: ₹${payload.total}\n\nAddress:\n\n${payload.delivery_address}\n\nPayment Method: ${payload.payment_method}`,
         },
         action: {
           buttons: [
@@ -591,9 +592,9 @@ function languageChangedNotificationStruct(payload) {
 }
 
 /*
-  * @param {object} payload
-  * @param {string} payload.to
-  */
+ * @param {object} payload
+ * @param {string} payload.to
+ */
 
 function requestWelcomeStruct(payload) {
   try {
@@ -636,6 +637,157 @@ function requestWelcomeStruct(payload) {
   }
 }
 
+/*
+ * @param {object} payload
+ * @param {string} payload.to
+ * @param {string} payload.language
+ */
+
+function buildPaymentMethodStruct(payload) {
+  try {
+    const english = `Please select your payment method 👇`;
+    const tamil = `உங்கள் கட்டண முறையைத் தேர்வுசெய்க 👇`;
+
+    const onlineBtnTitleEn = "Online";
+    const onlineBtnTitleTa = "ஆன்லைன்";
+    const podBtnTitleEn = "COD";
+    const podBtnTitleTa = "சிஓடி";
+
+    let text = english;
+
+    let onlineBtnTitle = onlineBtnTitleEn;
+    let podBtnTitle = podBtnTitleEn;
+
+    if (payload.language === "ta") {
+      text = tamil;
+      onlineBtnTitle = onlineBtnTitleTa;
+      podBtnTitle = podBtnTitleTa;
+    }
+
+    const struct = {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: payload.to,
+      type: "interactive",
+      interactive: {
+        type: "button",
+        body: {
+          text: text,
+        },
+        action: {
+          buttons: [
+            {
+              type: "reply",
+              reply: {
+                id: `${payload.order_id}-online`,
+                title: onlineBtnTitle,
+              },
+            },
+            {
+              type: "reply",
+              reply: {
+                id: `${payload.order_id}-cod`,
+                title: podBtnTitle,
+              },
+            },
+          ],
+        },
+      },
+    };
+    return struct;
+  } catch (error) {
+    logger.error(`Error building payment method struct: ${error.message}`);
+    return null;
+  }
+}
+
+/*
+Name : UPI intent struct
+Description : This struct format is used to send UPI payemnt intent to the user
+
+@param {object} payload
+@param {string} payload.to
+@param {string} payload.order_id
+@param {string} payload.total_amount
+@param {string} payload.catalog_id
+@param {string} payload.items //array of objects [{product_retailer_id,product_name,item_price,quantity}]
+
+
+*/
+
+function buildUPIIntentStruct(payload) {
+  try {
+    let offset = 100;
+
+    let items = payload.items.map((item) => {
+      return {
+        retailer_id: item.product_retailer_id,
+        name: item.product_name,
+        amount: {
+          value: parseFloat(item.item_price) * offset,
+          offset: offset,
+        },
+        quantity: item.quantity,
+      };
+    });
+
+    const struct = {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: payload.to,
+      type: "interactive",
+      interactive: {
+        type: "order_details",
+        body: {
+          text: `You are about to pay *₹${payload.total_amount}* for your order *${payload.order_id}*.`, 
+        },
+        footer: {
+          text: "the farm payments",
+        },
+        action: {
+          name: "review_and_pay",
+          parameters: {
+            reference_id: payload.order_id,
+            type: "physical-goods",
+            payment_configuration: "cashfree_test",
+            payment_type: "upi",
+            currency: "INR",
+            //Positive integer representing the amount value multiplied by offset
+            total_amount: {
+              value: parseFloat(payload.total_amount) * offset,
+              offset: offset,
+            },
+            order: {
+              status: "pending",
+              //   "type":"quick_pay",
+              catalog_id: "730957122326676",
+              // expiration: {
+              //   timestamp: "1709397974",
+              //   description: "time expired",
+              // },
+              items: items,
+
+              subtotal: {
+                value: parseFloat(payload.total_amount) * offset,
+                offset: offset,
+              },
+              tax: {
+                value: 0,
+                offset: 100,
+                description: "no tax applicable",
+              },
+            },
+          },
+        },
+      },
+    };
+    return struct;
+  } catch (error) {
+    logger.error(`Error building UPI intent struct: ${error.message}`);
+    return null;
+  }
+}
+
 module.exports = {
   buildTemplateStruct,
   buildCatalogStruct,
@@ -650,5 +802,7 @@ module.exports = {
   liveOrderStruct,
   selectLanguageStruct,
   languageChangedNotificationStruct,
-  requestWelcomeStruct
+  requestWelcomeStruct,
+  buildPaymentMethodStruct,
+  buildUPIIntentStruct,
 };

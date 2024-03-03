@@ -70,12 +70,22 @@ module.exports = (sequelize, DataTypes) => {
       },
       payment_method: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
       },
       payment_status: {
         type: DataTypes.STRING,
         allowNull: false,
         defaultValue: "pending",
+      },
+      payment_session_id: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        defaultValue: null,
+      },
+      cf_payment_id: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        defaultValue: null,
       },
       cancelled_by: {
         type: DataTypes.STRING,

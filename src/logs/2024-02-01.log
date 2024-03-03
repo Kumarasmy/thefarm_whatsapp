@@ -1,9 +1,0 @@
-{"level":"error","message":"Error sending message: 401 - {\"error\":{\"message\":\"Error validating access token: The session is invalid because the user logged out.\",\"type\":\"OAuthException\",\"code\":190,\"error_subcode\":467,\"fbtrace_id\":\"AZkYJFsTFAddhVk-rjlIzCm\"}}","timestamp":"2024-02-01T05:25:50.937Z"}
-{"level":"error","message":"Error handling request: Error sending message to user","timestamp":"2024-02-01T05:25:50.938Z"}
-{"level":"error","message":"Error sending message: 400 - {\"error\":{\"message\":\"(#100) Unexpected key \\\"name\\\" on param \\\"interactive['action']['parameters']\\\".\",\"type\":\"OAuthException\",\"code\":100,\"fbtrace_id\":\"AWtfwX7BcMWMHF6M9n29g7b\"}}","timestamp":"2024-02-01T05:44:20.267Z"}
-{"level":"error","message":"Error sending address message","timestamp":"2024-02-01T05:44:20.268Z"}
-{"level":"error","message":"Invalid name","timestamp":"2024-02-01T05:49:02.962Z"}
-{"level":"error","message":"Invalid name","timestamp":"2024-02-01T05:50:05.839Z"}
-{"level":"error","message":"Error sending message: 400 - {\"error\":{\"message\":\"(#100) Unexpected key \\\"name\\\" on param \\\"interactive['action']['parameters']\\\".\",\"type\":\"OAuthException\",\"code\":100,\"fbtrace_id\":\"A7EjdQFCJ0_COqqolg7gKf9\"}}","timestamp":"2024-02-01T05:50:06.157Z"}
-{"level":"error","message":"Error sending address message","timestamp":"2024-02-01T05:50:06.157Z"}
-{"level":"error","message":"Invalid name","timestamp":"2024-02-01T05:52:29.830Z"}

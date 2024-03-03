@@ -143,8 +143,7 @@ async function addAddressToOrder(payload) {
     const order_id = lastOrder.order_id;
     await orders.update(
       {
-        delivery_address: payload.delivery_address,
-        order_status: order_statusConstants.CONFIRMED,
+        delivery_address: payload.delivery_address
       },
       {
         where: {
@@ -255,6 +254,7 @@ async function mergeOrders(payload) {
         "quantity",
         "item_price",
         "order_id",
+        "product_name"
       ],
       raw: true,
       transaction,
@@ -272,6 +272,7 @@ async function mergeOrders(payload) {
       item_price: item.item_price,
       currency: "INR",
       order_id: lastOrderID,
+      product_name: item.product_name
     }));
 
     await order_items.bulkCreate(orderItemsPayload, { transaction });
@@ -397,6 +398,27 @@ async function checkOrderIDexists(order_id) {
   }
 }
 
+async function getProductName(product_retailer_id) {
+  try {
+    const product = await calatog_products.findOne({
+      where: {
+        retailer_id: product_retailer_id,
+      },
+      attributes: ["name"],
+      raw: true,
+    });
+
+    if (!product) {
+      return null;
+    }
+
+    return product.name;
+  } catch (error) {
+    logger.error(`Error getting product name: ${error.message}`);
+    return null;
+  }
+}
+
 async function getOrderDetails(order_id) {
   try {
     let order = await orders.findByPk(order_id, {
@@ -405,12 +427,13 @@ async function getOrderDetails(order_id) {
         "order_amount",
         "delivery_address",
         "catalog_id",
+        "payment_method",
       ],
       include: [
         {
           model: order_items,
           as: "order_items",
-          attributes: ["product_retailer_id", "quantity", "item_price"],
+          attributes: ["product_retailer_id", "quantity", "item_price","product_name"],
         },
       ],
     });
@@ -422,28 +445,16 @@ async function getOrderDetails(order_id) {
     const orderItems = order.order_items;
 
     let products = [];
+
     for (let i = 0; i < orderItems.length; i++) {
-      let product = await calatog_products.findOne({
-        where: {
-          retailer_id: orderItems[i].product_retailer_id,
-        },
-        attributes: ["name"],
-        raw: true,
+      let product = orderItems[i];
+      products.push({
+        product_retailer_id: product.product_retailer_id,
+        name : product.product_name || "N/A",
+        product_name: product.product_name || "N/A",
+        quantity: product.quantity,
+        item_price: product.item_price,
       });
-      if (product) {
-        //push name,quantity,price to products array
-        products.push({
-          name: product.name,
-          quantity: orderItems[i].quantity,
-          item_price: orderItems[i].item_price,
-        });
-      } else {
-        products.push({
-          product_retailer_id: `${orderItems[i].product_retailer_id}-"N/A"`,
-          quantity: orderItems[i].quantity,
-          item_price: orderItems[i].item_price,
-        });
-      }
     }
 
     order = {
@@ -451,6 +462,7 @@ async function getOrderDetails(order_id) {
       order_amount: order.order_amount,
       delivery_address: order.delivery_address,
       products,
+      payment_method: order.payment_method,
     };
 
     return order;
@@ -742,6 +754,66 @@ async function setLanguage(wa_id, language) {
   }
 }
 
+async function addPaymentMethod(order_id, payment_method) {
+  try {
+    await orders.update(
+      {
+        payment_method,
+      },
+      {
+        where: {
+          order_id,
+        },
+      }
+    );
+
+    return true;
+  } catch (error) {
+    logger.error(`Error adding payment method: ${error.message}`);
+    return null;
+  }
+}
+
+async function updatePrePayment(order_id,session_id,cf_id){
+  try{
+    await orders.update(
+      {
+        payment_session_id : session_id,
+        cf_payment_id: cf_id
+      },
+      {
+        where: {
+          order_id,
+        },
+      }
+    );
+    return true;
+  }catch(error){
+    logger.error(`Error updating payment id: ${error.message}`);
+    return null;
+  }
+
+}
+
+async function confirmOrderStatus(order_id){
+  try{
+    await orders.update(
+      {
+        order_status: order_statusConstants.CONFIRMED
+      },
+      {
+        where: {
+          order_id,
+        },
+      }
+    );
+    return true;
+  }catch(error){
+    logger.error(`Error confirming order: ${error.message}`);
+    return null;
+  }
+}
+
 module.exports = {
   checkUser,
   getUserAddress,
@@ -760,4 +832,8 @@ module.exports = {
   userLiveOrders,
   checkLanguage,
   setLanguage,
+  addPaymentMethod,
+  updatePrePayment,
+  getProductName,
+  confirmOrderStatus
 };

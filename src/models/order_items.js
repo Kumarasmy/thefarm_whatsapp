@@ -44,6 +44,10 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         defaultValue: "INR",
       },
+      product_name: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
     },
     {
       sequelize,
