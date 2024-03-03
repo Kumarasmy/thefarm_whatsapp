@@ -4,7 +4,9 @@ const {
   serviceable_pincodes,
   admins,
   serviceable_pincodes_descriptions,
+  payment,
 } = require("../config/bot.config");
+
 const {
   buildCatalogStruct,
   buildAddressStruct,
@@ -19,6 +21,8 @@ const {
   selectLanguageStruct,
   languageChangedNotificationStruct,
   requestWelcomeStruct,
+  buildPaymentMethodStruct,
+  buildUPIIntentStruct,
 } = require("./embed.functions");
 
 const { sendMessage } = require("./axios.functions");
@@ -40,10 +44,18 @@ const {
   userLiveOrders,
   checkLanguage,
   setLanguage,
+  addPaymentMethod,
+  updatePrePayment,
+  getProductName,
+  confirmOrderStatus,
 } = require("./database.functions");
 const orderStatus = require("../constants/order_status.constants");
+const { createCashfreeOrder } = require("./payments/cashfree.functions");
 const slashPrefix = "/";
 
+/*
+This is the core starter function for handling incoming messages from the user.
+*/
 exports.handleRequest = async (message) => {
   try {
     if (!message || !message.user) {
@@ -56,23 +68,23 @@ exports.handleRequest = async (message) => {
         if (message.msg_body.startsWith(prefix)) {
           await handleAdminCommand(message);
         } else if (message.msg_body.startsWith(slashPrefix)) {
-          await handleUserSlashCommand(message);
+          await handleUserSlashCommand(message); //user slash command
         } else {
-          await handleUserTextCommand(message);
+          await handleUserTextCommand(message); //user text command
         }
         break;
       case "request_welcome":
-        await handleRequestWelcome(message);
+        await handleRequestWelcome(message); //welcome message triggered when user starts a chat
         break;
-
       case "order":
         await handleOrder(message);
         break;
       case "interactive":
-        await handleInteractiveMessage(message);
+        await handleInteractiveMessage(message); //button reply or nfm reply
         break;
 
       default:
+        logger.error(`Message type not supported : ${message.type}`);
         break;
     }
   } catch (error) {
@@ -115,7 +127,6 @@ async function handleUserTextCommand(message) {
 }
 
 async function sendCatalog(message) {
-  
   const templatePayload = buildCatalogStruct({
     to: message.wa_id,
     language: message.user.language,
@@ -162,7 +173,17 @@ async function handleOrder(message) {
       return;
     }
 
-    const items = message.order.product_items;
+    let items = message.order.product_items;
+
+    //product items array as product_retailer_id get product name
+    for (let i = 0; i < items.length; i++) {
+      const productName = await getProductName(items[i].product_retailer_id);
+      if (productName) {
+        items[i].product_name = productName;
+      }else{
+        items[i].product_name = "N/A";
+      }
+    }
 
     const totalAmount = items.reduce((acc, item) => {
       return acc + item.item_price * item.quantity;
@@ -185,7 +206,7 @@ async function handleOrder(message) {
         timeZone: "Asia/Kolkata",
       }),
       delivery_address: null,
-      payment_method: "pod",
+      payment_method: null,
       payment_status: "pending",
       items,
     };
@@ -202,7 +223,6 @@ async function handleOrder(message) {
 
     if (!isPreviousOrderAvailable || isPreviousOrderAvailable.length === 0) {
       //ask address proceed to address
-
       return await proceedToAddress(message);
     } else {
       const previousItems = [];
@@ -290,7 +310,7 @@ async function proceedToAddress(message) {
   }
 }
 
-//nfm reply
+//nfm reply - [after user provide address]
 async function handleNFMReply(message) {
   try {
     const buttonResponse = message.buttonResponse;
@@ -311,12 +331,14 @@ async function handleNFMReply(message) {
           wa_id: message.wa_id,
           delivery_address: fullAddress,
         };
+
         const updateOrder = await addAddressToOrder(dbObj);
+
         if (updateOrder) {
           message.to = message.wa_id;
           message.order_id = updateOrder.order_id;
-          await sendOrderConfirmationMsg(message);
-          await informAdmin(message);
+
+          await checkAvailablePaymentMethod(message);
         } else {
           logger.error(`Error updating address : saved_address_id`);
         }
@@ -336,6 +358,7 @@ async function handleNFMReply(message) {
         };
 
         const savedAddress = await saveAddress(dbObj);
+
         if (!savedAddress) {
           throw new Error(`Error saving address : new address`);
         }
@@ -349,8 +372,8 @@ async function handleNFMReply(message) {
         if (updateOrder) {
           message.to = message.wa_id;
           message.order_id = updateOrder.order_id;
-          await sendOrderConfirmationMsg(message);
-          await informAdmin(message);
+
+          await checkAvailablePaymentMethod(message);
         } else {
           logger.error(`Error updating address`);
         }
@@ -367,6 +390,12 @@ async function handleNFMReply(message) {
 
 async function sendOrderConfirmationMsg(message) {
   try {
+
+    const confirm = await confirmOrderStatus(message.order_id);
+    if (!confirm) {
+      throw new Error(`Error confirming order status`);
+    }
+
     const templatePayload = buildOrdeConfirmedStruct(message);
 
     if (!templatePayload) {
@@ -382,7 +411,6 @@ async function sendOrderConfirmationMsg(message) {
     logger.error(`Error sending order confirmation message: ${error.message}`);
   }
 }
-
 
 async function mergeCart(message) {
   try {
@@ -450,37 +478,53 @@ async function handleButtonReply(message) {
   try {
     const response = message.buttonResponse;
 
-    if (response && response.title) {
-      if (response.title.toLowerCase() === "merge cart" || response.title.toLowerCase() === "ஒன்றிணைக்க") {
-        await mergeCart(message); //merges cart and sends address message
-        return;
-      } else if (response.title.toLowerCase() === "continue cart" || response.title.toLowerCase() === "தொடர") {
-        await continueCart(message); //removes previous cart and sends address message
-      } else if (response.title.toLowerCase() === "reject") {
-        await rejectOrCancelOrder(message);
-        return;
-      } else if (response.title.toLowerCase() === "delivered") {
-        await updateDeliveredOrder(message);
-        return;
-      } else if (
-        response.title.toLowerCase() === "english" ||
-        response.title.toLowerCase() === "தமிழ்"
-      ) {
-        let language = response.title.toLowerCase() === "english" ? "en" : "ta";
+    if (!response || !response.title) {
+      throw new Error("Invalid button response format");
+    }
 
-        await setLanguagePreference(message, language);
-        message.user.language = language; //update language in message object
-        await sendCatalog(message);
-        return;
-      } else {
-        logger.error(`Button title not supported : ${response.title}`);
-        return null;
-      }
+    const title = response.title.toLowerCase();
+
+    switch (title) {
+      case "merge cart":
+      case "ஒன்றிணைக்க":
+        await mergeCart(message);
+        break;
+      case "continue cart":
+      case "தொடர":
+        await continueCart(message);
+        break;
+      case "reject":
+        await deliverOrRejectOrder(message, orderStatus.CANCELLED, "cancel");
+        break;
+      case "delivered":
+        await deliverOrRejectOrder(message, orderStatus.DELIVERED, "deliver");
+        break;
+      case "english":
+      case "தமிழ்":
+        await handleLanguagePreference(message, title);
+        break;
+      case "ஆன்லைன்":
+      case "Online":
+      case "சிஓடி":
+      case "COD":
+        await handlePaymentMethod(message);
+        break;
+      default:
+        logger.info(`Button reply not supported : ${title}`);
+        await actionNotSupported(message);
+        break;
     }
   } catch (error) {
     logger.error(`Error handling button reply: ${error.message}`);
     return null;
   }
+}
+
+async function handleLanguagePreference(message, title) {
+  const language = title === "english" ? "en" : "ta";
+  await setLanguagePreference(message, language);
+  message.user.language = language;
+  await sendCatalog(message);
 }
 
 //send action not supported message
@@ -559,6 +603,7 @@ async function informAdmin(message) {
     //for each admin send message
     for (let i = 0; i < admins.length; i++) {
       const admin = admins[i];
+
       const adminPayload = {
         to: admin,
         from: message.wa_id,
@@ -567,6 +612,7 @@ async function informAdmin(message) {
         delivery_address: orderDetails.delivery_address,
         total: orderDetails.order_amount,
         products: orderDetails.products,
+        payment_method: orderDetails.payment_method,
       };
       const adminStruct = sendNewOrdersToAdmin(adminPayload);
 
@@ -603,14 +649,15 @@ async function sendCustomMessage(payload) {
   }
 }
 
-async function rejectOrCancelOrder(message) {
+//Admin Reject or Deliver Order functions
+async function deliverOrRejectOrder(message, newStatus, action) {
   try {
     const response = message.buttonResponse;
     const id = response.id ? response.id : null;
     const orderID = id.split("-").slice(1);
-    const prefix = id.split("-").slice(0, 1);
+
     if (!orderID || orderID.length === 0) {
-      throw new Error(`Error parsing orderID - reject or cancel`);
+      throw new Error(`Error parsing orderID - ${action}`);
     }
 
     const order = await checkOrderStatus(orderID[0]);
@@ -624,105 +671,62 @@ async function rejectOrCancelOrder(message) {
       return await sendCustomMessage(customMessage);
     }
 
-    //only CONFIRMED,PENDING orders can be cancelled
-    if (
-      order.order_status !== orderStatus.CONFIRMED &&
-      order.order_status !== orderStatus.PENDING
-    ) {
+    let validStatuses = [];
+
+    switch (action) {
+      case "deliver":
+        validStatuses = [orderStatus.CONFIRMED];
+        break;
+      case "cancel":
+        validStatuses = [orderStatus.CONFIRMED, orderStatus.PENDING];
+        break;
+      default:
+        throw new Error("Invalid action");
+    }
+
+    if (!validStatuses.includes(order.order_status)) {
       const customMessage = {
         to: message.wa_id,
-        body: `Order not in valid state for cancellation : ${order.order_status}`,
+        body: `Order not in valid state for ${action} : ${order.order_status}`,
       };
 
       return await sendCustomMessage(customMessage);
     }
 
-    const cancelReason =
-      prefix === "reject" ? "Admin rejected" : "User cancelled";
-
-    const cancelObj = {
+    const updateObj = {
       order_id: orderID[0],
-      cancel_reason: cancelReason,
-      cancelled_by: message.wa_id,
+      order_status: newStatus,
     };
 
-    const isCancelled = await cancelOrder(cancelObj);
+    const isSuccess = await updateOrderStatus(updateObj);
 
-    if (!isCancelled) {
+    if (!isSuccess) {
       const customMessage = {
         to: message.wa_id,
-        body: `Error cancelling order : ${orderID[0]}`,
+        body: `Error ${action}ing order : ${orderID[0]}`,
       };
 
       return await sendCustomMessage(customMessage);
     }
 
-    const customMessage = {
+    const customAdminMessage = {
       to: message.wa_id,
-      body: `Order cancelled : ${orderID[0]}`,
+      body: `Order status updated to ${newStatus} : ${orderID[0]}`,
     };
 
-    return await sendCustomMessage(customMessage);
+    const customUserMessage = {
+      to: order.wa_id,
+      body: `Your order has been ${action}ed : ${orderID[0]}`,
+    };
+
+    await Promise.all([
+      sendCustomMessage(customAdminMessage),
+      sendCustomMessage(customUserMessage),
+    ]);
+
+    return true;
   } catch (error) {
-    logger.error(`Error cancelling order: ${error.message}`);
-    return null;
-  }
-}
-
-async function updateDeliveredOrder(message) {
-  try {
-    const response = message.buttonResponse;
-    const id = response.id ? response.id : null;
-    const orderID = id.split("-").slice(1);
-    if (!orderID || orderID.length === 0) {
-      throw new Error(`Error parsing orderID - delivered`);
-    }
-
-    const order = await checkOrderStatus(orderID[0]);
-
-    if (!order) {
-      const customMessage = {
-        to: message.wa_id,
-        body: `Order not found : ${orderID[0]}`,
-      };
-
-      return await sendCustomMessage(customMessage);
-    }
-
-    //only CONFIRMED orders can be delivered
-    if (order.order_status !== orderStatus.CONFIRMED) {
-      const customMessage = {
-        to: message.wa_id,
-        body: `Order not in valid state for delivery : ${order.order_status}`,
-      };
-
-      return await sendCustomMessage(customMessage);
-    }
-
-    const deliveredObj = {
-      order_id: orderID[0],
-      order_status: orderStatus.DELIVERED,
-    };
-
-    const isDelivered = await updateOrderStatus(deliveredObj);
-
-    if (!isDelivered) {
-      const customMessage = {
-        to: message.wa_id,
-        body: `Error delivering order : ${orderID[0]}`,
-      };
-
-      return await sendCustomMessage(customMessage);
-    }
-
-    const customMessage = {
-      to: message.wa_id,
-      body: `Order delivered : ${orderID[0]}`,
-    };
-
-    return await sendCustomMessage(customMessage);
-  } catch (error) {
-    logger.error(`Error delivering order: ${error.message}`);
+    logger.error(`Error ${action}ing order: ${error.message}`);
     return null;
   }
 }
@@ -752,9 +756,9 @@ async function handleCommand(command, args, message) {
       case "serviceable_areas":
         await showServiceableAreas(message);
         break;
-        case "language":
-          await sendLanguageSelection(message);
-          break;
+      case "language":
+        await sendLanguageSelection(message);
+        break;
       default:
         logger.error(`Command not supported : ${command}`);
         break;
@@ -970,16 +974,15 @@ async function notifyLanguageChanged(message, language) {
   }
 }
 
-
-async function handleRequestWelcome(message){
+async function handleRequestWelcome(message) {
   try {
     if (!message) {
       logger.error(`Invalid message for request welcome`);
       return null;
     }
     const templatePayload = requestWelcomeStruct({
-      to : message.wa_id,
-    })
+      to: message.wa_id,
+    });
 
     if (!templatePayload) {
       throw new Error(`Error building template payload`);
@@ -990,10 +993,134 @@ async function handleRequestWelcome(message){
     if (!sendToUser) {
       throw new Error(`Error sending message to user`);
     }
-    
   } catch (error) {
     logger.error(`Error handling request welcome: ${error.message}`);
     return null;
+  }
+}
+
+//PAYMENT FUNCTIONS
+async function askPaymentMethod(message) {
+  try {
+    const templatePayload = buildPaymentMethodStruct({
+      to: message.wa_id,
+      language: message.user.language,
+      order_id: message.order_id,
+    });
+
+    if (!templatePayload) {
+      throw new Error(`Error building payment method struct`);
+    }
+
+    const sendToUser = await sendMessage(templatePayload);
+
+    if (!sendToUser) {
+      throw new Error(`Error sending payment method message`);
+    }
+  } catch (error) {
+    logger.error(`Error asking payment method: ${error.message}`);
+  }
+}
+
+async function checkAvailablePaymentMethod(message) {
+  try {
+    //check payment.available_methods obj {online:true,cod:true} //if both are true, then ask payment method else proceed to address
+    if (!payment || !payment.available_methods) {
+      logger.error(`Payment config not found or invalid`);
+      return null;
+    }
+    const availableMethods = payment.available_methods;
+    if (availableMethods.online && availableMethods.cod) {
+      await askPaymentMethod(message);
+    } else {
+      await sendOrderConfirmationMsg(message);
+      await informAdmin(message);
+    }
+
+    return true;
+  } catch (error) {
+    logger.error(`Error checking available payment method: ${error.message}`);
+    return null;
+  }
+}
+
+async function handlePaymentMethod(message) {
+  let orderId = message.buttonResponse.id.split("-")[0];
+  let paymentMethod = message.buttonResponse.id.split("-")[1];
+  message.order_id = orderId;
+  message.to = message.wa_id;
+  if (paymentMethod === "cod") {
+    await addPaymentMethod(orderId, paymentMethod);
+    await sendOrderConfirmationMsg(message);
+    await informAdmin(message);
+  } else {
+    await startOnlinePayment(message);
+  }
+}
+
+//END OF PAYMENT FUNCTIONS
+
+async function startOnlinePayment(message) {
+  try {
     
+    const orderDetails = await getOrderDetails(message.order_id);
+    if (!orderDetails) {
+      logger.error(`Error fetching order details`);
+      return null;
+    }
+
+    const cashfreeOrderStruct = {
+      //remove starting # from order_id
+      order_id : message.order_id.slice(1),
+      order_amount : orderDetails.order_amount,
+      customer_id : message.wa_id,
+      customer_name : `farm user ${message.wa_id}`,
+      customer_phone : message.wa_id.slice(2),
+      order_note : `Payment for order ${message.order_id}`,
+      //10 minutes from now iso8601 format
+      order_expiry_time: new Date(Date.now() + 20 * 60000).toISOString(),
+    }
+    const createOrder = await createCashfreeOrder(cashfreeOrderStruct);
+
+    //get payment session id and cf_order_id
+
+    if (!createOrder) {
+      logger.error(`Error creating online payment order`);
+      return null;
+    }
+
+    //save payment session id and cf_order_id to db
+    let sessionId = createOrder.payment_session_id;
+    let cfOrderId = createOrder.cf_order_id;
+
+    await updatePrePayment(message.order_id, sessionId, cfOrderId);
+
+    let upiStruct = {
+      to : message.wa_id,
+      order_id : message.order_id.slice(1),
+      total_amount : orderDetails.order_amount,
+      catalog_id : orderDetails.catalog_id,
+      items : orderDetails.products,
+    }
+
+    const upiPayload = buildUPIIntentStruct(upiStruct);
+
+    if (!upiPayload) {
+      logger.error(`Error building upi intent struct`);
+      return null;
+    }
+
+    const sendToUser = await sendMessage(upiPayload);
+
+    if (!sendToUser) {
+      logger.error(`Error sending upi intent message`);
+      return null;
+    }
+
+    return true;
+
+  } catch (error) {
+    logger.error(`Error starting online payment: ${error.message}`);
+    return null;
   }
 }

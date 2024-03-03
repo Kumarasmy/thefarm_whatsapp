@@ -1,5 +1,6 @@
 const axios = require("axios");
 const { logger } = require("../utils");
+const { payment } = require("../config/bot.config");
 
 const {
   phoneNumberID,
@@ -12,6 +13,26 @@ const axiosInstance = axios.create({
   timeout: 60000, //60 seconds
   headers: { "Content-Type": "application/json" },
 });
+
+//create a new axios instance for payment gateway
+const axiosPaymentInstance = axios.create({
+  baseURL: payment.enable_live_payment
+    ? payment.cashfree_config.prod.baseUrl
+    : payment.cashfree_config.test.baseUrl,
+  timeout: 60000, //60 seconds
+  headers: {
+    "accept": "application/json",
+    "Content-Type": "application/json",
+    "x-api-version": "2023-08-01",
+    "x-client-id": payment.enable_live_payment
+    ? payment.cashfree_config.prod.clientId
+    : payment.cashfree_config.test.clientId,
+  "x-client-secret": payment.enable_live_payment
+    ? payment.cashfree_config.prod.clientSecret
+    : payment.cashfree_config.test.clientSecret,
+  },
+});
+
 
 async function sendMessage(payload) {
   try {
@@ -52,4 +73,5 @@ async function sendMessage(payload) {
 module.exports = {
   sendMessage,
   axiosInstance,
+  axiosPaymentInstance,
 };
