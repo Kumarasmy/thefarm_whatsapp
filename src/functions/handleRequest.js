@@ -23,9 +23,10 @@ const {
   requestWelcomeStruct,
   buildPaymentMethodStruct,
   buildUPIIntentStruct,
+  fbOrderStatusUpdateStruct,
 } = require("./embed.functions");
 
-const { sendMessage } = require("./axios.functions");
+const { sendMessage, getPaymentStatus } = require("./axios.functions");
 
 const {
   saveAddress,
@@ -45,10 +46,11 @@ const {
   checkLanguage,
   setLanguage,
   addPaymentMethod,
-  updatePrePayment,
+  updateOrderPayment,
   getProductName,
   confirmOrderStatus,
 } = require("./database.functions");
+
 const orderStatus = require("../constants/order_status.constants");
 const { createCashfreeOrder } = require("./payments/cashfree.functions");
 const slashPrefix = "/";
@@ -81,6 +83,9 @@ exports.handleRequest = async (message) => {
         break;
       case "interactive":
         await handleInteractiveMessage(message); //button reply or nfm reply
+        break;
+      case "payment":
+        await handlePaymentWebhook(message);
         break;
 
       default:
@@ -180,7 +185,7 @@ async function handleOrder(message) {
       const productName = await getProductName(items[i].product_retailer_id);
       if (productName) {
         items[i].product_name = productName;
-      }else{
+      } else {
         items[i].product_name = "N/A";
       }
     }
@@ -390,7 +395,6 @@ async function handleNFMReply(message) {
 
 async function sendOrderConfirmationMsg(message) {
   try {
-
     const confirm = await confirmOrderStatus(message.order_id);
     if (!confirm) {
       throw new Error(`Error confirming order status`);
@@ -504,9 +508,9 @@ async function handleButtonReply(message) {
         await handleLanguagePreference(message, title);
         break;
       case "ஆன்லைன்":
-      case "Online":
+      case "online":
       case "சிஓடி":
-      case "COD":
+      case "cod":
         await handlePaymentMethod(message);
         break;
       default:
@@ -607,7 +611,7 @@ async function informAdmin(message) {
       const adminPayload = {
         to: admin,
         from: message.wa_id,
-        name: message.name,
+        name: message.name || "N/A",
         order_id: message.order_id,
         delivery_address: orderDetails.delivery_address,
         total: orderDetails.order_amount,
@@ -1060,50 +1064,91 @@ async function handlePaymentMethod(message) {
 
 //END OF PAYMENT FUNCTIONS
 
+// The below code is for cashfree based online payment
+// async function startOnlinePayment(message) {
+//   try {
+
+//     const orderDetails = await getOrderDetails(message.order_id);
+//     if (!orderDetails) {
+//       logger.error(`Error fetching order details`);
+//       return null;
+//     }
+
+//     const cashfreeOrderStruct = {
+//       //remove starting # from order_id
+//       order_id : message.order_id.slice(1),
+//       order_amount : orderDetails.order_amount,
+//       customer_id : message.wa_id,
+//       customer_name : `farm user ${message.wa_id}`,
+//       customer_phone : message.wa_id.slice(2),
+//       order_note : `Payment for order ${message.order_id}`,
+//       //10 minutes from now iso8601 format
+//       order_expiry_time: new Date(Date.now() + 20 * 60000).toISOString(),
+//     }
+//     const createOrder = await createCashfreeOrder(cashfreeOrderStruct);
+
+//     //get payment session id and cf_order_id
+
+//     if (!createOrder) {
+//       logger.error(`Error creating online payment order`);
+//       return null;
+//     }
+
+//     //save payment session id and cf_order_id to db
+//     let sessionId = createOrder.payment_session_id;
+//     let cfOrderId = createOrder.cf_order_id;
+
+//     await updatePrePayment(message.order_id, sessionId, cfOrderId);
+
+//     let upiStruct = {
+//       to : message.wa_id,
+//       order_id : message.order_id.slice(1),
+//       total_amount : orderDetails.order_amount,
+//       catalog_id : orderDetails.catalog_id,
+//       items : orderDetails.products,
+//     }
+
+//     const upiPayload = buildUPIIntentStruct(upiStruct);
+
+//     if (!upiPayload) {
+//       logger.error(`Error building upi intent struct`);
+//       return null;
+//     }
+
+//     const sendToUser = await sendMessage(upiPayload);
+
+//     if (!sendToUser) {
+//       logger.error(`Error sending upi intent message`);
+//       return null;
+//     }
+
+//     return true;
+
+//   } catch (error) {
+//     logger.error(`Error starting online payment: ${error.message}`);
+//     return null;
+//   }
+// }
+
 async function startOnlinePayment(message) {
   try {
-    
     const orderDetails = await getOrderDetails(message.order_id);
     if (!orderDetails) {
       logger.error(`Error fetching order details`);
       return null;
     }
 
-    const cashfreeOrderStruct = {
-      //remove starting # from order_id
-      order_id : message.order_id.slice(1),
-      order_amount : orderDetails.order_amount,
-      customer_id : message.wa_id,
-      customer_name : `farm user ${message.wa_id}`,
-      customer_phone : message.wa_id.slice(2),
-      order_note : `Payment for order ${message.order_id}`,
-      //10 minutes from now iso8601 format
-      order_expiry_time: new Date(Date.now() + 20 * 60000).toISOString(),
-    }
-    const createOrder = await createCashfreeOrder(cashfreeOrderStruct);
-
-    //get payment session id and cf_order_id
-
-    if (!createOrder) {
-      logger.error(`Error creating online payment order`);
-      return null;
-    }
-
-    //save payment session id and cf_order_id to db
-    let sessionId = createOrder.payment_session_id;
-    let cfOrderId = createOrder.cf_order_id;
-
-    await updatePrePayment(message.order_id, sessionId, cfOrderId);
-
     let upiStruct = {
-      to : message.wa_id,
-      order_id : message.order_id.slice(1),
-      total_amount : orderDetails.order_amount,
-      catalog_id : orderDetails.catalog_id,
-      items : orderDetails.products,
-    }
+      to: message.wa_id,
+      order_id: message.order_id.slice(1),
+      total_amount: orderDetails.order_amount,
+      catalog_id: orderDetails.catalog_id,
+      items: orderDetails.products,
+      payment_configuration: payment.facebook_payment_config,
+    };
 
     const upiPayload = buildUPIIntentStruct(upiStruct);
+    console.log(upiPayload);
 
     if (!upiPayload) {
       logger.error(`Error building upi intent struct`);
@@ -1118,9 +1163,100 @@ async function startOnlinePayment(message) {
     }
 
     return true;
-
   } catch (error) {
     logger.error(`Error starting online payment: ${error.message}`);
     return null;
   }
 }
+
+async function handlePaymentWebhook(message) {
+  try {
+
+    if (!message.payment) {
+      logger.error(`Invalid payment object`);
+      return null;
+    }
+
+    let referenceId = message.payment.reference_id;
+    message.order_id = `#${referenceId}`;
+    let paymentStatus = await getPaymentStatus(referenceId);
+
+    if (!paymentStatus) {
+      logger.error(`Error fetching payment status`);
+      return null;
+    }
+
+
+    // transactionStatus will be in 
+    let transactionStatus = paymentStatus.payments[0]?.transactions[0]?.status;
+
+    if(!transactionStatus || transactionStatus === null){
+      logger.error(`Error fetching transaction status`);
+      return null;
+    }
+    
+    const updateOrder = await updateOrderPayment(`#${referenceId}`, transactionStatus);
+
+    if (!updateOrder) {
+      logger.error(`Error updating order payment status`);
+      return null;
+    }
+    
+
+    let fbStatusObj = {
+      to : message.wa_id,
+      order_id : `#${referenceId}`,
+      reference_id : referenceId,
+      status : transactionStatus,
+    }
+
+
+    const updateFBOrder = await updateFBOrderStatus(fbStatusObj);
+
+    if (!updateFBOrder) {
+      logger.error(`Error updating fb order status`);
+      return null;
+    }
+
+    //inform admin
+
+    let adminObj = {
+      wa_id : message.wa_id,
+      order_id : `#${referenceId}`
+    }
+
+    await informAdmin(adminObj);
+
+
+
+  } catch (error) {
+    logger.error(`Error handling payment webhook: ${error.message}`);
+    return null;
+  }
+}
+
+async function updateFBOrderStatus(message) {
+try {
+
+  const struct = fbOrderStatusUpdateStruct(message);
+
+  if (!struct) {
+    logger.error(`Error building fb order status update struct`);
+    return null;
+  }
+
+  const sendToUser = await sendMessage(struct);
+
+  if (!sendToUser) {
+    logger.error(`Error sending fb order status update message`);
+    return null;
+  }
+
+  return true;
+  
+} catch (error) {
+  logger.error(`Error updating fb order status: ${error.message}`);
+  return null;
+  
+}
+};

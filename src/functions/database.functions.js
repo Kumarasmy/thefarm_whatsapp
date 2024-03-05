@@ -774,12 +774,13 @@ async function addPaymentMethod(order_id, payment_method) {
   }
 }
 
-async function updatePrePayment(order_id,session_id,cf_id){
+async function updateOrderPayment(order_id,status){
   try{
+    //if sataus is 'success' or captured, then update order status to confirmed else keep it as pending
+    const order_status = status === 'success' || status === 'captured' ? order_statusConstants.CONFIRMED : order_statusConstants.PENDING;
     await orders.update(
       {
-        payment_session_id : session_id,
-        cf_payment_id: cf_id
+        order_status : order_status
       },
       {
         where: {
@@ -833,7 +834,7 @@ module.exports = {
   checkLanguage,
   setLanguage,
   addPaymentMethod,
-  updatePrePayment,
+  updateOrderPayment,
   getProductName,
   confirmOrderStatus
 };

@@ -36,6 +36,7 @@ module.exports = {
       online: true,
       cod: true,
     },
+    facebook_payment_config : "razor_pay2"
   },
 };
 

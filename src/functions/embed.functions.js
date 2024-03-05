@@ -710,6 +710,7 @@ Description : This struct format is used to send UPI payemnt intent to the user
 @param {string} payload.order_id
 @param {string} payload.total_amount
 @param {string} payload.catalog_id
+@param {string} payload.payment_configuration
 @param {string} payload.items //array of objects [{product_retailer_id,product_name,item_price,quantity}]
 
 
@@ -739,7 +740,7 @@ function buildUPIIntentStruct(payload) {
       interactive: {
         type: "order_details",
         body: {
-          text: `You are about to pay *₹${payload.total_amount}* for your order *${payload.order_id}*.`, 
+          text: `You are about to pay *₹${payload.total_amount}* for your order *${payload.order_id}*.`,
         },
         footer: {
           text: "the farm payments",
@@ -749,7 +750,18 @@ function buildUPIIntentStruct(payload) {
           parameters: {
             reference_id: payload.order_id,
             type: "physical-goods",
-            payment_configuration: "cashfree_test",
+            payment_settings: [
+              {
+                type: "payment_gateway",
+                payment_gateway: {
+                  type: "razorpay",
+                  configuration_name: payload.payment_configuration,
+                  razorpay: {
+                    receipt: payload.order_id,
+                  },
+                },
+              },
+            ],
             payment_type: "upi",
             currency: "INR",
             //Positive integer representing the amount value multiplied by offset
@@ -788,6 +800,43 @@ function buildUPIIntentStruct(payload) {
   }
 }
 
+/*
+  * @param {object} payload
+  * @param {string} payload.to
+  * @param {string} payload.order_id
+  * @param {string} payload.status
+  * @param {string} payload.reference_id
+  */
+
+function fbOrderStatusUpdateStruct(payload) {
+  try {
+    const struct = {
+      messaging_product: "whatsapp",
+      to: payload.to,
+      type: "interactive",
+      interactive: {
+        type: "order_status",
+        body: {
+          text: `Your order *${payload.order_id}* has been ${payload.status}.`,
+        },
+        action: {
+          name: "review_order",
+          parameters: {
+            reference_id: payload.reference_id,
+            order: {
+              status: payload.status === "success" ? "completed" : "canceled",
+            },
+          },
+        },
+      },
+    };
+    return struct;
+  } catch (error) {
+    logger.error(`Error building order status update struct: ${error.message}`);
+    return null;
+  }
+}
+
 module.exports = {
   buildTemplateStruct,
   buildCatalogStruct,
@@ -805,4 +854,5 @@ module.exports = {
   requestWelcomeStruct,
   buildPaymentMethodStruct,
   buildUPIIntentStruct,
+  fbOrderStatusUpdateStruct
 };

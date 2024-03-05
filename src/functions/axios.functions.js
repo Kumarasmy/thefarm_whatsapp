@@ -70,8 +70,47 @@ async function sendMessage(payload) {
   }
 }
 
+async function getPaymentStatus(reference_id) {
+  // GET [PHONE_NUMBER_ID]/payments/{payment_configuration}/{reference_id}
+  try {
+    const response = await axiosInstance.get(
+      `${phoneNumberID}/payments/${payment.facebook_payment_config}/${reference_id}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json", // Make sure to set the content type
+        },
+      }
+    );
+
+    if (response.data) {
+      return response.data;
+    } else {
+      logger.error(`Error getting payment status: Response does not contain data`);
+      return null;
+    }
+
+  }
+  catch (error) {
+    if (error.response) {
+      logger.error(
+        `Error getting payment status: ${error.response.status} - ${JSON.stringify(
+          error.response.data
+        )}`
+      );
+    } else if (error.request) {
+      logger.error(`Error getting payment status: No response received`);
+    } else {
+      logger.error(`Error getting payment status: ${error.message}`);
+    }
+
+    return null;
+  }
+}
+
 module.exports = {
   sendMessage,
   axiosInstance,
   axiosPaymentInstance,
+  getPaymentStatus,
 };

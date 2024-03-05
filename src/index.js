@@ -4,8 +4,9 @@ const app = express();
 const port = 4000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 const { parseWebhook, checkUser } = require("./functions");
-const { isMaintainanceMode,accessToken } = require("./config/bot.config");
+const { isMaintainanceMode, accessToken } = require("./config/bot.config");
 const { logger } = require("./utils");
 const { handleRequest } = require("./functions/handleRequest");
 const { startCronJobs } = require("./cron");
@@ -36,17 +37,15 @@ app.post("/webhook", async (req, res) => {
   if (!response.wa_id || !response.from) {
     return;
   }
+
   const user = await checkUser(response);
 
-  // console.log(user);
   // //if maintainance mode is on, and user is not admin, then return
   if (isMaintainanceMode && !user.is_admin) {
     return;
   }
 
-
   await handleRequest({ ...response, user });
-
 });
 
 app.get("/", (req, res) => {
@@ -60,4 +59,4 @@ app.listen(port, () => {
 startCronJobs();
 updateCatalogProducts(); //initial update
 
-console.log(new Date(Date.now() + 20 * 60000).toISOString())
+console.log(new Date(Date.now() + 20 * 60000).toISOString());

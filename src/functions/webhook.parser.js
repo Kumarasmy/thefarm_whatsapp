@@ -18,6 +18,8 @@ function parseWebhook(body) {
     timestamp: null,
     messageId: null,
     order: null,
+    payment: null, //payment object present in the statuses
+    wa_payment_status: null, //whatsapp payment status
   };
 
   try {
@@ -31,9 +33,10 @@ function parseWebhook(body) {
         const message = body.entry[0].changes[0].value.messages[0];
         const contact = body.entry[0].changes[0].value.contacts[0];
 
+        const type = message.type;
+
         response.name = contact.profile?.name;
         response.wa_id = contact.wa_id;
-        const type = message.type;
         response.timestamp = message.timestamp;
         response.type = type;
         response.messageId = message.id;
@@ -82,6 +85,16 @@ function parseWebhook(body) {
             `Error from WhatsApp: ${JSON.stringify(message.errors)}`
           );
         }
+      } else if (body.entry[0].changes[0].value.statuses) {
+        const statuses = body.entry[0].changes[0].value.statuses;
+        if (!statuses[0].type) {
+          return response;
+        }
+        response.wa_id = statuses[0].recipient_id;
+        response.from = statuses[0].recipient_id;
+        response.type = statuses[0].type;
+        response.payment = statuses[0].payment;
+        response.wa_payment_status = statuses[0].status;
       }
     }
     return response;
@@ -116,6 +129,14 @@ function setInteractiveProperties(response, buttonType, buttonResponse) {
   response.buttonType = buttonType;
   response.isButton = true;
   response.buttonResponse = buttonResponse;
+}
+
+function managePayment(response, message) {
+  const payment = message.payment;
+
+  if (payment) {
+    response.payment = payment;
+  }
 }
 
 module.exports = {
